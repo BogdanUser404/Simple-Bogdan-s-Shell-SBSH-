@@ -8,7 +8,7 @@ use std::ptr;
 use std::env;
 use std::path::Path;
 use std::io::{self, Write};
-mod aliases;
+pub mod aliases;
 mod print;
 mod small_utils;
 mod var;
@@ -44,19 +44,19 @@ pub fn handle_builtin(line: &str) {
             expansion_count += 1;
             continue;
         }
--
+
         match args[0].as_str() {
             "print" => {
-                print::print(&args);
+                print::print(args);
             }
             "cd" => {
-                small_utils::cd(&args);
+                small_utils::cd(args);
             }
             "var" => {
-                var::handle_var(&args[1..]);
+                var::handle_var(args);
             }
             "exit" => {
-                small_utils::exit(&args);
+                small_utils::exit(args);
             }
             "clr" => {
                 small_utils::clr();
@@ -64,7 +64,7 @@ pub fn handle_builtin(line: &str) {
             _ => {
                 system_run(args);
             }
-        }
+        };
         break;
     }
 }

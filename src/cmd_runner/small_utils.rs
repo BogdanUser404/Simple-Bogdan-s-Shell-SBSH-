@@ -8,9 +8,8 @@ use std::path::Path;
 
 pub fn clr(){
     print!("\x1B[2J\x1B[H");
-    io::stdout().flush().unwrap();
+    std::io::stdout().flush().unwrap();
 }
-
 pub fn cd(args: Vec<String>) {
     let target = if args.len() >= 2 {
         args[1].clone()

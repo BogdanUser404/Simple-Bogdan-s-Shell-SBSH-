@@ -14,7 +14,7 @@ unsafe fn remove_var_unsafe(key: &str) {
 }
 
 /// Var builtin 
-pub fn handle_var(args: &[String]) {
+pub fn handle_var(args: Vec<String>) {
     if args.is_empty() {
         for (key, value) in env::vars() {
             println!("{}={}", key, value);
@@ -22,9 +22,9 @@ pub fn handle_var(args: &[String]) {
         return;
     }
 
-    match args[0].as_str() {
+    match args[1].as_str() {
         "match" => {
-            if args.len() < 2 {
+            if args.len() < 3 {
                 eprintln!("var match: too few arguments");
                 return;
             }
@@ -34,18 +34,18 @@ pub fn handle_var(args: &[String]) {
             }
         }
         "del" => {
-            if args.len() < 2 {
+            if args.len() < 3 {
                 eprintln!("var del: missing variable name");
                 return;
             }
             unsafe {
-                remove_var_unsafe(&args[1]);
+                remove_var_unsafe(&args[2]);
             }
         }
         _ => {
-            if args.len() >= 3 && args[1] == "=" {
-            let name = &args[0];
-            let value = args[2..].join(" ");
+            if args.len() >= 3 && args[2] == "=" {
+            let name = &args[1];
+            let value = args[3..].join(" ");
             unsafe { set_var_unsafe(name, &value); }
         }
         else if let Some((key, value)) = args[0].split_once('=') {

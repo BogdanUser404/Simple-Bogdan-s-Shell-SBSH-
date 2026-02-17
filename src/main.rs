@@ -11,7 +11,7 @@ fn main() {
     let engine = rhai_api::init_rhai();
     let home = api::get_var("HOME".to_string()).unwrap_or_default();
     let config = home.clone() + "/.sbshrc.rhai";
-    let history = home + "/.sbsh_history.txt";
+    let history = home + ".sbsh_history.txt";
 
     let ast = engine.compile_file(config.into())
         .expect("Failed to compile configuration file");

@@ -6,10 +6,15 @@ This documentation is dedicated exclusively to the hooks and functions added to 
 
 ## Hooks
 
-SBSH uses two hooks: `on_input` and `repeat`. Hooks are ordinary functions in Rhai.  
-`on_input` is called after input and receives the input as an argument. `repeat` is called first in the main loop; its main purpose is to be a single-threaded analog of an infinite loop and update the shell state, for example as below. Note that the hook executes after checking for the existence of the `PS1` environment variable, so logic for obtaining the `PS1` environment variable before the hook execution is necessary.
+SBSH uses several hooks. Hooks are ordinary functions in Rhai.  
+- `repeat` – called first in the main loop; its main purpose is to be a single-threaded analog of an infinite loop and update the shell state.  
+- `on_input` – called after user input, receives the input as an argument. After this hook, standard command processing does **not** run; commands must be handled manually.  
+- `on_cd` – called after a successful directory change (via the `cd` built‑in).  
+- `on_exit` – called just before the shell terminates (by `exit` command or signal).
 
-Example code for the `repeat` hook in practice:
+**Note about `repeat`:** The hook executes after checking for the existence of the `PS1` environment variable, so logic for obtaining `PS1` before the hook execution is necessary.
+
+### Example of `repeat`
 ```
 fn repeat() {
     // Get values
@@ -21,48 +26,30 @@ fn repeat() {
 }
 ```
 
-The `on_input` hook is called after the user enters text and takes the user input as an argument. After the hook is called, the standard command processing does not run, and commands must be handled manually. This hook is used for advanced aliases and auto-completion.
-
-Example code below:
+### Example of `on_input`
 ```
 // File .sbshrc.rhai – example of using the on_input hook
 
-// Command logging function (appends the line to a file)
 fn log_command(cmd) {
-    // Open log file in the home directory
     let log_path = get_var("HOME") + "/.sbsh_history.log";
-    // Append command and time (can add timestamp)
-    let timestamp = "[" + get_current_time() + "] "; // if time function exists
+    let timestamp = "[" + get_time("%Y-%m-%d %H:%M:%S") + "] ";
     let entry = timestamp + cmd + "\n";
-    // Here we need a function to write to a file, e.g., write_file
-    // Assume such a function exists in the API (can be added)
-    // write_file(log_path, entry, "append");
-    // For demonstration, just print to terminal
-    print("Logging: " + cmd);
+    write_file(log_path, entry, "append");
 }
 
 fn on_input(line) {
-    // Log all commands
     log_command(line);
 
     // Auto-replace 'g' with 'git'
     if line == "g" {
         let (out, err, code) = run_command("git status");
         print(out + err);
-        return; // command handled
+        return;
     }
     if line.starts_with("g ") {
         let git_cmd = "git " + line.slice(2);
         let (out, err, code) = run_command(git_cmd);
         print(out + err);
-        return;
-    }
-
-    // Warning before a dangerous command
-    if line.contains("rm -rf /") {
-        print("⚠️  This will delete the entire system! Type 'yes' to confirm.");
-        // Can request confirmation via another mechanism, but here just output warning
-        // and do not execute the command
         return;
     }
 
@@ -72,61 +59,125 @@ fn on_input(line) {
 }
 ```
 
+### New hooks: `on_cd` and `on_exit`
+
+#### `on_cd(old_path, new_path)`
+Called after a successful directory change. It receives two strings: the previous working directory and the new one. Useful for updating environment variables, loading project‑specific settings, or logging.
+
+**Example:**
+```
+fn on_cd(old, new) {
+    // Activate Python virtual environment if present
+    let venv = new + "/venv/bin/activate";
+    if is_file(venv) {
+        // Assuming a hypothetical `source` function; here we just print
+        print("Activate venv in " + new);
+    }
+    // Update prompt with git branch
+    if is_git_repo() {
+        set_var("PS1", "(" + get_git_branch() + ") $ ");
+    }
+}
+```
+
+#### `on_exit(exit_code)`
+Called just before the shell terminates, with the exit code that will be returned to the parent process. Useful for cleanup tasks, saving state, or logging session end.
+
+**Example:**
+```
+fn on_exit(code) {
+    let log = get_var("HOME") + "/.sbsh_exit.log";
+    let msg = "Exited with code " + code + " at " + get_time("%c") + "\n";
+    write_file(log, msg, "append");
+}
+```
+
+---
+
 ## SBSH-Specific Functions
 
-SBSH adds a fair number of unique functions for working with SBSH and the system.  
-The functions are grouped by category.
+SBSH adds many unique functions for working with the shell and the system. They are grouped by category.
 
-### Value Retrieval
-
+### Value Retrieval (0.1)
 | Function | Description |
 |----------|-------------|
 | `get_user()` | Returns the username. |
 | `get_current_dir()` | Returns the current directory. |
 
-### Environment Variables
-
+### Environment Variables(0.1 and 0.2)
 | Function | Description |
 |----------|-------------|
 | `get_var(name)` | Returns the value of a variable. |
-| `set_var(name, value)` | Creates an environment variable (if absent) and moves the value into it. |
+| `set_var(name, value)` | Creates or updates an environment variable. |
+| `del_var(name)` | Removes an environment variable. Added in 0.2| 
 
-### Aliases
-
+### Aliases (0.1)
 | Function | Description |
 |----------|-------------|
 | `alias_add(name, replacement)` | Creates an alias for a command. |
-| `alias_get(name)` | Returns what the alias replaces (if the alias exists); if the alias is absent, returns `none`. |
+| `alias_get(name)` | Returns what the alias replaces (or `none`). |
 | `alias_list()` | Returns a list of all aliases. |
 | `alias_remove(name)` | Deletes an alias by name. |
 | `alias_clear()` | Deletes all aliases. |
 
-### String Formatting
-
+### String Formatting (0.1)
 | Function | Description |
 |----------|-------------|
 | `set_color(r, g, b)` | Applies an RGB color to the string it is called on. |
-| `set_bold(true/false)` | Makes the string it is applied to bold/non-bold. |
+| `set_bold(true/false)` | Makes the string bold or normal. |
 
-### Git Integration
-
+### Git Integration (0.1)
 | Function | Description |
 |----------|-------------|
-| `is_git_repo()` | Returns `true`/`false` depending on whether the current directory is a git repository. |
-| `get_git_branch()` | Returns the git branch of the project in the current directory. |
-| `git_is_dirty()` | Checks if there are uncommitted changes in the repository; returns `true`/`false`. |
-| `git_ahead_behind()` | Returns the number of uncommitted changes. |
+| `is_git_repo()` | Returns `true`/`false` if current directory is a git repository. |
+| `get_git_branch()` | Returns the current git branch. |
+| `git_is_dirty()` | Checks for uncommitted changes. |
+| `git_ahead_behind()` | Returns the number of commits ahead/behind. |
 
-### Miscellaneous
-
+### File System (0.2)
 | Function | Description |
 |----------|-------------|
-| `load_plugin(path/to/file.rhai)` | Runs the specified Rhai script on another Rhai engine. |
-| `system(command)` | Executes a command. |
+| `read_file(path) -> String` | Reads the entire contents of a file as a string. |
+| `write_file(path, content, mode)` | Writes `content` to a file. `mode` can be `"overwrite"` or `"append"`. |
+| `is_file(path) -> Bool` | Returns `true` if the path points to a regular file. |
+| `is_dir(path) -> Bool` | Returns `true` if the path points to a directory. |
+| `get_file(path) -> String` | Returns the last component of the path (file or directory name). Returns empty string if path ends with `/`. |
 
-## A Number of Technical Features
+### Timing (0.2)
+| Function | Description |
+|----------|-------------|
+| `start_timer(name)` | Starts a timer with the given name. |
+| `stop_timer(name) -> Float` | Stops the named timer and returns the elapsed time in seconds (as a floating‑point number). |
+| `get_time(format) -> String` | Returns the current local time formatted according to the given `format` string (using `strftime` conventions). |
 
-SBSH is a single-threaded program, therefore:
+**Examples with new functions:**
+```
+// Check if a directory exists before creating it
+if !is_dir("/tmp/mydir") {
+    write_file("/tmp/mydir/note.txt", "Created at " + get_time("%F"), "overwrite");
+}
+
+// Measure how long a command takes
+start_timer("mycmd");
+run_command("sleep 2");
+let elapsed = stop_timer("mycmd");
+print("Command took " + elapsed + " seconds");
+
+// Get just the filename from a path
+let fname = get_file("/home/user/docs/report.pdf");   // returns "report.pdf"
+```
+
+### Miscellaneous (0.1)
+| Function | Description |
+|----------|-------------|
+| `load_plugin(path)` | Runs the specified Rhai script on another Rhai engine. |
+| `system(command)` | Executes a command (alias for `run_command`). |
+
+---
+
+## Technical Features
+
+SBSH is a single‑threaded program, therefore:
 - Infinite loops block the program; instead, use the `repeat` hook or provide a way to exit them.
-- Long calculations in the `repeat` hook and the functions/fwiles it calls are not recommended; avoid complex computations.
+- Long calculations in the `repeat` hook and the functions/files it calls are not recommended; avoid complex computations.
 - Without the `.sbshrc.rhai` file in the home directory and the `PS1` variable declared in it, SBSH will not start.

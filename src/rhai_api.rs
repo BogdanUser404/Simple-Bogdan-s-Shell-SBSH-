@@ -11,6 +11,7 @@ pub fn init_rhai() -> Engine{
     engine.register_fn("get_current_dir", api::get_current_dir);
     engine.register_fn("get_var", api::get_var);
     engine.register_fn("set_var", api::set_var);
+    engine.register_fn("del_var", api::del_var);
     engine.register_fn("alias_add", api::alias_add);
     engine.register_fn("alias_list", api::alias_list);
     engine.register_fn("alias_remove", api::alias_remove);

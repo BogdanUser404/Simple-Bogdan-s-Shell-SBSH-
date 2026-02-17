@@ -61,8 +61,8 @@ pub fn set_var(name: String, value: String) {
 pub fn get_var(name: String) -> Option<String>{
     env::var(name).ok()
 }
-pub unsafe fn del_var(name: String){
-    env::remove_var(name);
+pub fn del_var(name: String){
+    unsafe {env::remove_var(name);}
 }
 
 

@@ -24,6 +24,14 @@ pub fn init_rhai() -> Engine{
     engine.register_fn("git_is_dirty", api::git_is_dirty);
     engine.register_fn("load_plugin", api::load_plugin);
     engine.register_fn("git_ahead_behind", api::git_ahead_behind);
+    engine.register_fn("read_file", api::read_file);
+    engine.register_fn("write_file", api::write_file);
+    engine.register_fn("is_file", api::is_file);
+    engine.register_fn("is_dir", api::is_dir);
+    engine.register_fn("get_file", api::get_file);
+    engine.register_fn("start_timer", api::start_timer);
+    engine.register_fn("stop_timer", api::stop_timer);
+    engine.register_fn("get_time", api::get_current_time);
     //Returned engine for work in main func
     engine
 }

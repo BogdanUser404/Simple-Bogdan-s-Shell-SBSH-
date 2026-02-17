@@ -5,20 +5,39 @@ use rustyline::DefaultEditor;
 use rustyline::error::ReadlineError;
 mod api;
 mod rhai_api;
+use std::cell::RefCell;
+use rhai::{Engine, AST};
 pub mod cmd_runner;
 
+thread_local! {
+    pub static GLOBAL_ENGINE: RefCell<Engine> = RefCell::new(rhai_api::init_rhai());
+    pub static GLOBAL_AST: RefCell<Option<AST>> = RefCell::new(None);
+}
+
 fn main() {
-    let engine = rhai_api::init_rhai();
     let home = api::get_var("HOME".to_string()).unwrap_or_default();
     let config = home.clone() + "/.sbshrc.rhai";
-    let history = home + ".sbsh_history.txt";
+    let history = home + "/.sbsh_history.txt";
 
-    let ast = engine.compile_file(config.into())
-        .expect("Failed to compile configuration file");
-    engine.run_ast(&ast)
-        .expect("Failed to execute configuration file");
+    //Compiling config
+    let ast = GLOBAL_ENGINE.with(|eng| {
+        eng.borrow()
+            .compile_file(config.into())
+            .expect("Failed to compile configuration file")
+    });
 
-    let mut ps1 = api::get_var("PS1".to_string())
+
+    GLOBAL_AST.with(|cell| *cell.borrow_mut() = Some(ast.clone()));
+
+    //Runing confog
+    GLOBAL_ENGINE.with(|eng| {
+        eng.borrow()
+            .run_ast(&ast)
+            .expect("Failed to execute configuration file")
+    });
+
+    //Get prompt
+    let _ = api::get_var("PS1".to_string())
         .expect("No PS1 variable set. Check your .sbshrc.rhai");
 
     let mut rl = DefaultEditor::new()
@@ -28,13 +47,19 @@ fn main() {
     loop {
         let mut scope = ::rhai::Scope::new();
 
-        // Repeat hook
-        if let Err(e) = engine.call_fn::<()>(&mut scope, &ast, "repeat", ()) {
-            if !e.to_string().contains("Function not found") {
-                eprintln!("Error in on_input hook: {}", e);
-            }
-        }
-
+        //Run hook repeat
+        GLOBAL_ENGINE.with(|eng| {
+            GLOBAL_AST.with(|cell| {
+                if let Some(ast) = cell.borrow().as_ref() {
+                    if let Err(e) = eng.borrow().call_fn::<()>(&mut scope, ast, "repeat", ()) {
+                        if !e.to_string().contains("Function not found") {
+                            eprintln!("Error in repeat hook: {}", e);
+                        }
+                    }
+                }
+            });
+        });
+        //Get prompr
         let ps1 = api::get_var("PS1".to_string())
             .expect("Non PS1 variable, check the .sbshrc and plugins");
 
@@ -48,15 +73,23 @@ fn main() {
         };
         rl.add_history_entry(&line).ok();
 
-        //on_input hook
-        if let Err(e) = engine.call_fn::<()>(&mut scope, &ast, "on_input", (line.clone(),)) {
-            if !e.to_string().contains("Function not found") {
-                eprintln!("Error in on_input hook: {}", e);
-            }
-            if e.to_string().contains("Function not found"){
-                api::run_command(line);
-            }
-        }
+        let mut scope = ::rhai::Scope::new();
+
+        //Runig on output
+        GLOBAL_ENGINE.with(|eng| {
+            GLOBAL_AST.with(|cell| {
+                if let Some(ast) = cell.borrow().as_ref() {
+                    if let Err(e) = eng.borrow().call_fn::<()>(&mut scope, ast, "on_input", (line.clone(),)) {
+                        if !e.to_string().contains("Function not found") {
+                            eprintln!("Error in on_input hook: {}", e);
+                        }
+                    }
+                }
+            });
+        });
+
+        // Executing command
+        api::run_command(line);
     }
 
     rl.save_history(&history).ok();

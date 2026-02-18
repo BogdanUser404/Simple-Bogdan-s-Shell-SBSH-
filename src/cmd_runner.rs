@@ -12,6 +12,8 @@ pub mod aliases;
 mod print;
 mod small_utils;
 mod var;
+use crate::GLOBAL_AST;
+use crate::GLOBAL_ENGINE;
 
 pub fn handle_builtin(line: &str) {
     const MAX_EXPANSION: u32 = 10;  // защита от циклических алиасов
@@ -61,9 +63,25 @@ pub fn handle_builtin(line: &str) {
             "clr" => {
                 small_utils::clr();
             }
+            "update" =>{
+                crate::GLOBAL_ENGINE.with(|eng| {
+                crate::GLOBAL_AST.with(|cell| {
+                if let Some(ast) = cell.borrow().as_ref() {
+                    let engine = eng.borrow();
+                    let mut scope = rhai::Scope::new();
+                    if let Err(e) = engine.run_ast(ast) {
+                        if !e.to_string().contains("Function not found") {
+                            eprintln!("Error in on_cd hook: {}", e);
+                        }
+                    }
+                }
+                });
+            });
+            }
             _ => {
                 system_run(args);
             }
+
         };
         break;
     }

@@ -7,11 +7,15 @@ The project's philosophy is brief:
 "Do what you want, however you want, but be careful."
 ## License
 
-This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+This program is free software: you can redistribute it and/or modify it under the terms of the **GNU General Public License v3.0 or later**.
 
-This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+### ⚠️ Ethical Restrictions (Additional Terms)
+In accordance with Section 7 of the GNU GPLv3, the following additional requirements apply to any redistribution or use of this software:
 
-You should have received a copy of the GNU General Public License along with this program.
+1. **AI & ML Training:** Use of this source code or its binaries for training, fine-tuning, or testing artificial intelligence/machine learning models is permitted **only** if the resulting model weights and training algorithms are made publicly available under a compatible copyleft license.
+2. **Military Use:** Any use of this software for military purposes, defense industry projects, or weapon systems development is permitted **only** if the source code of the entire encompassing system is publicly disclosed under a compatible copyleft license.
+
+This program is distributed in the hope that it will be useful, but **WITHOUT ANY WARRANTY**; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 ## Using libraries
 
